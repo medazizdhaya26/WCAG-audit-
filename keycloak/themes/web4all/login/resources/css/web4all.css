@@ -1,0 +1,248 @@
+/* ============================================================
+   Thème de connexion WEB4ALL — écran partagé (split-screen)
+   Panneau de marque à gauche + formulaire à droite
+   ============================================================ */
+
+:root {
+  --brand: #15241B;
+  --brand-soft: #2E4034;
+  --cream: #F3F0E8;
+  --line: #E3DFD3;
+  --muted: #6B7A70;
+  --neon: #D9F95F;
+  --pink: #F7C6D8;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+
+/* ── Plein écran ───────────────────────────────────────────── */
+html, body,
+.login-pf body,
+body.login-pf {
+  background: var(--cream) !important;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  width: 100%;
+  min-height: 100vh;
+  height: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden;
+}
+/* Les conteneurs Keycloak occupent tout l'écran */
+#kc-container,
+#kc-container-wrapper {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 100vh !important;
+}
+
+/* ── Panneau de marque à GAUCHE (image illustration) ───────── */
+body::before {
+  content: "";
+  position: fixed;
+  left: 0; top: 0;
+  width: 46vw;
+  height: 100vh;
+  z-index: 0;
+  background: #15241B url("../img/login-side.svg") center / cover no-repeat;
+  box-shadow: 20px 0 60px rgba(21, 36, 27, 0.15);
+}
+
+/* petits halos flous côté droit (derrière la carte) */
+body.login-pf::after {
+  content: "";
+  position: fixed;
+  right: -120px; top: -120px;
+  width: 380px; height: 380px;
+  border-radius: 50%;
+  background: rgba(217, 249, 95, 0.5);
+  filter: blur(80px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Zone du formulaire : moitié DROITE ────────────────────── */
+.login-pf-page {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  margin-left: 46vw;                 /* commence après le panneau image */
+  width: 54vw;                       /* occupe la moitié droite */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+/* Titre WEB4ALL (displayName) au-dessus de la carte — NOIR GRAS */
+#kc-header-wrapper {
+  color: #000000 !important;
+  font-size: 34px !important;
+  font-weight: 900 !important;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding-bottom: 12px;
+  text-shadow: none;
+}
+
+/* ── Carte ─────────────────────────────────────────────────── */
+.card-pf {
+  border: 1px solid var(--line) !important;
+  border-radius: 26px !important;
+  box-shadow: 0 24px 60px rgba(21, 36, 27, 0.14) !important;
+  background: #ffffff !important;
+  padding: 36px !important;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto !important;
+}
+.card-pf::before {
+  content: "Accessibilite pour tous";
+  display: inline-block;
+  background: var(--neon);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+
+#kc-page-title {
+  color: #000000 !important;
+  font-weight: 900 !important;
+  font-size: 26px !important;
+}
+
+/* ── Labels & champs ── (noir gras pour la lisibilité) ─────── */
+.pf-c-form__label, label,
+#kc-form-login label,
+.control-label { color: #000000 !important; font-weight: 700 !important; }
+.form-control, input[type="text"], input[type="password"], input[type="email"] {
+  height: 47px !important;
+  border-radius: 12px !important;
+  border: 1.5px solid #CBD3C7 !important;
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+  padding: 0 14px !important;
+  transition: all .15s ease;
+}
+.form-control::placeholder, input::placeholder { color: #8A968C !important; }
+.form-control:focus, input:focus {
+  border-color: var(--brand) !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 4px rgba(217, 249, 95, 0.45) !important;
+  outline: none !important;
+}
+
+/* ── Bouton principal (toutes variantes de classes Keycloak) ─ */
+.btn-primary,
+#kc-login,
+input[type="submit"],
+button[type="submit"],
+.pf-c-button.pf-m-primary,
+.pf-v5-c-button.pf-m-primary,
+.pf-m-primary {
+  width: 100% !important;
+  height: 49px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #1f3a2b 0%, var(--brand) 100%) !important;
+  background-color: var(--brand) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  font-size: 15px !important;
+  margin-top: 10px;
+  transition: transform .1s ease, filter .15s ease;
+}
+.btn-primary:hover,
+#kc-login:hover,
+.pf-m-primary:hover,
+button[type="submit"]:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+/* ── Connexion sociale (Google / Facebook / GitHub) ────────── */
+#kc-social-providers {
+  margin-top: 22px;
+}
+#kc-social-providers h2,
+#kc-social-providers hr + * {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  text-align: center;
+  font-weight: 600;
+}
+#kc-social-providers ul {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#kc-social-providers a.pf-c-button,
+#kc-social-providers a,
+.pf-c-login__main-footer-links a,
+a[id^="social-"],
+a[id^="zocial-"] {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100% !important;
+  height: 46px !important;
+  border-radius: 12px !important;
+  border: 1.5px solid var(--line) !important;
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  transition: all .15s ease;
+}
+#kc-social-providers a:hover,
+a[id^="social-"]:hover,
+a[id^="zocial-"]:hover {
+  border-color: var(--brand) !important;
+  box-shadow: 0 4px 14px rgba(21, 36, 27, 0.10);
+  transform: translateY(-1px);
+}
+/* pastilles de couleur par provider */
+#social-google, a[id$="google"] { border-left: 5px solid #EA4335 !important; }
+#social-facebook, a[id$="facebook"] { border-left: 5px solid #1877F2 !important; }
+#social-github, a[id$="github"] { border-left: 5px solid #24292E !important; }
+
+/* séparateur "ou" */
+#kc-content hr, .pf-c-login__main hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 18px 0 6px;
+}
+
+/* ── Liens / options / erreurs ─────────────────────────────── */
+a { color: var(--brand-soft); font-weight: 600; }
+a:hover { color: var(--brand); text-decoration: underline; }
+#kc-registration a, #kc-registration-container a { color: var(--brand) !important; font-weight: 800; }
+#kc-form-options label { color: var(--muted) !important; font-weight: 500 !important; }
+.alert-error, .pf-c-alert.pf-m-danger {
+  border-radius: 12px !important;
+  border: 1px solid #F3C0C0 !important;
+  background: #FDECEC !important;
+}
+#kc-info, .login-pf-page-footer { color: var(--muted); }
+
+/* ── Responsive : on masque le panneau gauche sur mobile ───── */
+@media (max-width: 900px) {
+  body::before { display: none; }
+  .login-pf-page { margin-left: 0 !important; width: 100% !important; }
+}
+@media (max-width: 520px) {
+  .card-pf { padding: 26px 22px !important; }
+  #kc-header-wrapper { font-size: 24px !important; }
+}

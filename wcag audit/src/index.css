@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Palette WEB4ALL (couleurs de la home) utilisables comme classes Tailwind :
+   bg-brand, text-brand, bg-cream, bg-pink, bg-neon, text-muted, border-line … */
+@theme {
+  --color-brand: #15241B;     /* vert foncé (accent principal) */
+  --color-brand-soft: #2E4034;
+  --color-cream: #F3F0E8;     /* fond crème */
+  --color-line: #E3DFD3;      /* bordures */
+  --color-muted: #6B7A70;     /* texte secondaire */
+  --color-pink: #F7C6D8;      /* rose */
+  --color-neon: #D9F95F;      /* jaune néon */
+  --color-rust: #E2542B;      /* orange */
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-slate-100;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full border-2 border-slate-100;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}

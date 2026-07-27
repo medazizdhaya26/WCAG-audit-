@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/wcag-services/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "tsConfigPath": "apps/wcag-services/tsconfig.app.json"
+  },
+  "monorepo": true,
+  "root": "apps/wcag-services",
+  "projects": {
+    "audit-service": {
+      "type": "application",
+      "root": "apps/audit-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/audit-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/audit-service/tsconfig.app.json"
+      }
+    },
+    "report-service": {
+      "type": "application",
+      "root": "apps/report-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/report-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/report-service/tsconfig.app.json"
+      }
+    },
+    "crawler-service": {
+      "type": "application",
+      "root": "apps/crawler-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/crawler-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/crawler-service/tsconfig.app.json"
+      }
+    },
+    "wcag-services": {
+      "type": "application",
+      "root": "apps/wcag-services",
+      "entryFile": "main",
+      "sourceRoot": "apps/wcag-services/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/wcag-services/tsconfig.app.json"
+      }
+    }
+  }
+}

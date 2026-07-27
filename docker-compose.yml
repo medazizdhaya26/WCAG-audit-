@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: wcag-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: wcagdb
+    ports:
+      - "5432:5432"
+    volumes:
+      # Crée automatiquement user_db + keycloak au 1er démarrage
+      - ./init-db:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7
+    container_name: wcag-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # ── Keycloak 26 (identité / SSO) ────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: web4all-keycloak
+    restart: always
+    command: ["start-dev", "--import-realm", "--http-port=8081"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: admin
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./keycloak/realm-web4all.json:/opt/keycloak/data/import/realm-web4all.json
+      - ./keycloak/themes:/opt/keycloak/themes
+    depends_on:
+      - postgres
+
+#  report-service:
+#    build:
+#      context: ./wcag-services
+#      dockerfile: Dockerfile
+#    container_name: report-service
+#    ports:
+#      - "3001:3001"
+#    environment:
+#      - DB_HOST=postgres
+#      - DB_PORT=5432
+#      - DB_USERNAME=admin
+#      - DB_PASSWORD=admin
+#      - DB_DATABASE=wcagdb
+#      - REDIS_HOST=redis
+#      - REDIS_PORT=6379
+#    depends_on:
+#      - postgres
+#      - redis
+#    command: ["node", "dist/apps/report-service/main"]
+#
+#  audit-service:
+#    build:
+#      context: ./wcag-services
+#      dockerfile: Dockerfile
+#    container_name: audit-service
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      - REPORT_SERVICE_URL=http://report-service:3001/reports
+#      - DB_HOST=postgres
+#      - DB_PORT=5432
+#      - DB_USERNAME=admin
+#      - DB_PASSWORD=admin
+#      - DB_DATABASE=wcagdb
+#      - REDIS_HOST=redis
+#      - REDIS_PORT=6379
+#    depends_on:
+#      - report-service
+#      - redis
+#    command: ["node", "dist/apps/audit-service/main"]
+#
+#  crawler-service:
+#    build:
+#      context: ./wcag-services
+#      dockerfile: Dockerfile
+#    container_name: crawler-service
+#    ports:
+#      - "3002:3002"
+#    environment:
+#      - PORT=3002
+#      - DB_HOST=postgres
+#      - DB_PORT=5432
+#      - DB_USERNAME=admin
+#      - DB_PASSWORD=admin
+#      - DB_DATABASE=wcagdb
+#      - REDIS_HOST=redis
+#      - REDIS_PORT=6379
+#    depends_on:
+#      - postgres
+#      - redis
+#      - audit-service
+#    command: ["node", "dist/apps/crawler-service/main"]

@@ -1,0 +1,26 @@
+export enum WebsiteAuditStatus {
+  QUEUED = 'QUEUED',
+  CRAWLING = 'CRAWLING',
+  AUDITING = 'AUDITING',
+  GENERATING_REPORT = 'GENERATING_REPORT',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum PageAuditStatus {
+  QUEUED = 'QUEUED',
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  SKIPPED = 'SKIPPED',
+}
+
+export enum IssueImpact {
+  CRITICAL = 'CRITICAL',
+  SERIOUS = 'SERIOUS',
+  MODERATE = 'MODERATE',
+  MINOR = 'MINOR',
+  UNKNOWN = 'UNKNOWN',
+}
+

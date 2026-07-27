@@ -1,0 +1,105 @@
+{
+  "realm": "web4all",
+  "enabled": true,
+  "displayName": "WEB4ALL",
+  "displayNameHtml": "<span style='font-weight:900;letter-spacing:2px'>WEB4ALL</span>",
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "loginTheme": "web4all",
+  "roles": {
+    "realm": [
+      { "name": "USER", "description": "Utilisateur standard" },
+      { "name": "ADMIN", "description": "Administrateur" }
+    ]
+  },
+  "identityProviders": [
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "providerId": "google",
+      "enabled": true,
+      "trustEmail": true,
+      "config": {
+        "clientId": "REMPLACER_PAR_GOOGLE_CLIENT_ID",
+        "clientSecret": "REMPLACER_PAR_GOOGLE_CLIENT_SECRET",
+        "syncMode": "IMPORT",
+        "defaultScope": "openid email profile"
+      }
+    },
+    {
+      "alias": "facebook",
+      "displayName": "Facebook",
+      "providerId": "facebook",
+      "enabled": true,
+      "trustEmail": true,
+      "config": {
+        "clientId": "REMPLACER_PAR_FACEBOOK_APP_ID",
+        "clientSecret": "REMPLACER_PAR_FACEBOOK_APP_SECRET",
+        "syncMode": "IMPORT",
+        "defaultScope": "email public_profile"
+      }
+    },
+    {
+      "alias": "github",
+      "displayName": "GitHub",
+      "providerId": "github",
+      "enabled": true,
+      "trustEmail": true,
+      "config": {
+        "clientId": "REMPLACER_PAR_GITHUB_CLIENT_ID",
+        "clientSecret": "REMPLACER_PAR_GITHUB_CLIENT_SECRET",
+        "syncMode": "IMPORT"
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "web4all-frontend",
+      "name": "WEB4ALL Frontend (React)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:5174/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:5174/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "demo",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "demo@web4all.com",
+      "firstName": "Demo",
+      "lastName": "User",
+      "credentials": [
+        { "type": "password", "value": "demo", "temporary": false }
+      ],
+      "realmRoles": ["USER"]
+    },
+    {
+      "username": "admin-web4all",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin@web4all.com",
+      "firstName": "Admin",
+      "lastName": "WEB4ALL",
+      "credentials": [
+        { "type": "password", "value": "admin", "temporary": false }
+      ],
+      "realmRoles": ["USER", "ADMIN"]
+    }
+  ]
+}

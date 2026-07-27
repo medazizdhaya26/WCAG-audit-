@@ -1,0 +1,42 @@
+server:
+  port: 7050
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/paymentdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8081/realms/e-commerce/protocol/openid-connect/certs
+
+eureka:
+  client:
+    enabled: true
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}:${server.port}
+
+stripe:
+  secret:
+    key: sk_test_51SOxIgB4zweRpcmOX8sy67wGhK91z8PLiAiaQayFZlSfC1jIJLGtfh0YCQoXMqR0v28GJler8VkQ1lirveOh54uH00mZ000HCI
+  publishable:
+    key: pk_test_51SOxIgB4zweRpcmODt7D2brUXaajiXHDP6lyFFgRlcgobE5wfWPM5u0Df27k9oeTKgE2Y1gIWAeFNCdUvdfRA61800y9yVvFvv
