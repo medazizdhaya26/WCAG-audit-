@@ -43,8 +43,11 @@ RUN npx playwright install chromium
 
 COPY . .
 
-RUN npm run build
+# Monorepo NestJS : on compile CHAQUE service (nest build sans arg ne build que l'app par défaut)
+RUN npx nest build crawler-service \
+ && npx nest build audit-service \
+ && npx nest build report-service
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start:prod"]
+CMD ["node", "dist/apps/crawler-service/main"]
