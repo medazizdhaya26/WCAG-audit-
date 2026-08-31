@@ -19,7 +19,8 @@ export async function initKeycloak(): Promise<boolean> {
     const authed = await keycloak.init({
       onLoad: 'check-sso',
       silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
-      pkceMethod: 'S256',
+      // PKCE S256 nécessite HTTPS (Web Crypto). En HTTP on le désactive pour permettre le login.
+      // Pour réactiver PKCE, passe le site en HTTPS et remets pkceMethod: 'S256'.
     });
 
     // Ajoute automatiquement le token Bearer à toutes les requêtes axios
