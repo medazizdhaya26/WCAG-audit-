@@ -7,9 +7,10 @@ import { ChatBot } from './ChatBot';
 import { isAuthenticated } from './keycloak';
 import { useSearchParams } from 'react-router-dom';
 import { NavBar } from './NavBar';
+import { CRAWLER_URL, REPORT_URL, USER_URL } from './config';
 
-const CRAWLER_SERVICE_URL = 'http://localhost:3002';
-const REPORT_SERVICE_URL = 'http://localhost:3001';
+const CRAWLER_SERVICE_URL = CRAWLER_URL;
+const REPORT_SERVICE_URL = REPORT_URL;
 
 type WebsiteAuditStatus =
   | 'QUEUED'
@@ -296,7 +297,7 @@ function App() {
 
       // Incrémente le compteur d'audits de l'utilisateur (userService) si connecté.
       if (isAuthenticated()) {
-        axios.post('http://localhost:8100/api/users/me/audits/increment').catch(() => {});
+        axios.post(`${USER_URL}/api/users/me/audits/increment`).catch(() => {});
       }
 
       setCurrentAuditId(id);

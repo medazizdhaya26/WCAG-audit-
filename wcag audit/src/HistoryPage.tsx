@@ -5,7 +5,7 @@ import { History, ChevronRight, Loader2, LogIn } from 'lucide-react';
 import { NavBar } from './NavBar';
 import { isAuthenticated, login } from './keycloak';
 
-const REPORT_SERVICE_URL = 'http://localhost:3001';
+import { REPORT_URL as REPORT_SERVICE_URL } from './config';
 
 type SiteItem = {
   id: string;

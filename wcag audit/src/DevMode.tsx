@@ -9,7 +9,7 @@ import { Loader2, Play, AlertCircle, ExternalLink, CheckCircle2, Upload } from '
 import { NavBar } from './NavBar';
 import { WavePanel, WaveOverlay, type WaveAnalysisData, type WaveResult } from './WavePanel';
 
-const AUDIT_SERVICE_URL = 'http://localhost:3005';
+import { AUDIT_URL as AUDIT_SERVICE_URL } from './config';
 
 type Issue = {
   id: string;

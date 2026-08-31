@@ -8,8 +8,7 @@ import {
 import { NavBar } from './NavBar';
 import { isAuthenticated, login, logout, currentUser, isAdmin } from './keycloak';
 
-const USER_SERVICE_URL = 'http://localhost:8100';
-const REPORT_SERVICE_URL = 'http://localhost:3001';
+import { USER_URL as USER_SERVICE_URL, REPORT_URL as REPORT_SERVICE_URL } from './config';
 
 type Profile = {
   id: string;

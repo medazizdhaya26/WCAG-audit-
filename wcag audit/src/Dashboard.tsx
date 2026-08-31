@@ -14,7 +14,7 @@ import { Globe, FileText, AlertTriangle, Gauge, ChevronRight, Loader2 } from 'lu
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-const REPORT_SERVICE_URL = 'http://localhost:3001';
+import { REPORT_URL as REPORT_SERVICE_URL } from './config';
 
 type DashboardStats = {
   totalSites: number;

@@ -1,9 +1,10 @@
 import Keycloak from 'keycloak-js';
 import axios from 'axios';
+import { KEYCLOAK_URL } from './config';
 
 // Client public défini dans le realm web4all (voir keycloak/realm-web4all.json)
 export const keycloak = new Keycloak({
-  url: 'http://localhost:8081',
+  url: KEYCLOAK_URL,
   realm: 'web4all',
   clientId: 'web4all-frontend',
 });

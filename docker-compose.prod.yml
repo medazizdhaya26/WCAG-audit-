@@ -1,0 +1,133 @@
+# ── WEB4ALL — déploiement production (EC2) ───────────────────────────────
+# Prérequis : définir EC2_IP (IP publique de l'instance) avant de lancer :
+#   export EC2_IP=13.37.x.x   (Linux)
+#   docker compose -f docker-compose.prod.yml up -d --build
+services:
+  postgres:
+    image: postgres:15
+    container_name: web4all-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: wcagdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports: ["5432:5432"]
+
+  redis:
+    image: redis:7
+    container_name: web4all-redis
+    restart: always
+    ports: ["6379:6379"]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: web4all-keycloak
+    restart: always
+    command: ["start-dev", "--import-realm", "--http-port=8081"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: admin
+      KC_HOSTNAME: http://${EC2_IP}:8081
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm-web4all.json:/opt/keycloak/data/import/realm-web4all.json
+    ports: ["8081:8081"]
+    depends_on: [postgres]
+
+  crawler-service:
+    build: ./wcag-services
+    container_name: web4all-crawler
+    restart: always
+    command: ["node", "dist/apps/crawler-service/main"]
+    environment:
+      PORT: 3002
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
+      DB_DATABASE: wcagdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_ENABLED: "false"
+      KEYCLOAK_ISSUER: http://${EC2_IP}:8081/realms/web4all
+    ports: ["3002:3002"]
+    depends_on: [postgres, redis]
+
+  audit-service:
+    build: ./wcag-services
+    container_name: web4all-audit
+    restart: always
+    command: ["node", "dist/apps/audit-service/main"]
+    environment:
+      AUDIT_SERVICE_PORT: 3005
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
+      DB_DATABASE: wcagdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REPORT_SERVICE_URL: http://report-service:3001/reports
+    ports: ["3005:3005"]
+    depends_on: [postgres, redis]
+
+  report-service:
+    build: ./wcag-services
+    container_name: web4all-report
+    restart: always
+    command: ["node", "dist/apps/report-service/main"]
+    environment:
+      REPORT_SERVICE_PORT: 3001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
+      DB_DATABASE: wcagdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_ENABLED: "false"
+      KEYCLOAK_ISSUER: http://${EC2_IP}:8081/realms/web4all
+      # IA (optionnel) : OPENAI_API_KEY / OLLAMA_MODEL
+    ports: ["3001:3001"]
+    depends_on: [postgres, redis]
+
+  user-service:
+    build: ./userService
+    container_name: web4all-user
+    restart: always
+    environment:
+      SERVER_PORT: 8100
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://${EC2_IP}:8081/realms/web4all
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://${EC2_IP}:8081/realms/web4all/protocol/openid-connect/certs
+      EUREKA_CLIENT_ENABLED: "false"
+      SPRING_CONFIG_IMPORT: "optional:configserver:"
+    ports: ["8100:8100"]
+    depends_on: [postgres, keycloak]
+
+  frontend:
+    build:
+      context: ./wcag audit
+      args:
+        VITE_CRAWLER_URL: http://${EC2_IP}:3002
+        VITE_AUDIT_URL: http://${EC2_IP}:3005
+        VITE_REPORT_URL: http://${EC2_IP}:3001
+        VITE_USER_URL: http://${EC2_IP}:8100
+        VITE_KEYCLOAK_URL: http://${EC2_IP}:8081
+    container_name: web4all-frontend
+    restart: always
+    ports: ["80:80"]
+    depends_on: [crawler-service, audit-service, report-service]
+
+volumes:
+  pgdata:

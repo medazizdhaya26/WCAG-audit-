@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { MessageCircle, X, Send, Bot, Loader2, KeyRound } from 'lucide-react';
 
-const REPORT_SERVICE_URL = 'http://localhost:3001';
+import { REPORT_URL as REPORT_SERVICE_URL } from './config';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
