@@ -60,6 +60,53 @@ function pageWeight(depth: number): number {
   return 1 / (depth + 1);
 }
 
+/**
+ * Détecte si la page chargée est en réalité une page de blocage (anti-bot Cloudflare,
+ * limite de fréquence, "vous allez trop vite"…) plutôt que le vrai contenu.
+ * Retourne une raison lisible, ou null si la page semble normale.
+ */
+function detectBlockPage(input: {
+  finalUrl: string;
+  httpStatus: number | null;
+  title: string | null;
+  bodyText: string;
+}): string | null {
+  const url = (input.finalUrl || '').toLowerCase();
+  const text = `${input.title ?? ''}\n${input.bodyText ?? ''}`.toLowerCase();
+
+  // 1) Marqueurs dans l'URL (challenge Cloudflare)
+  if (/__cf_chl|cdn-cgi\/challenge|__cf_chl_rt_tk/.test(url)) {
+    return 'Page bloquée par une protection anti-bot (Cloudflare) — non auditée.';
+  }
+
+  // 2) Phrases typiques des pages de blocage / limite de fréquence (FR + EN)
+  const phrases = [
+    'vous allez un peu trop vite',
+    'trop de tentatives',
+    'veuillez réessayer',
+    'just a moment',
+    'checking your browser',
+    'attention required',
+    'rate limited',
+    'too many requests',
+    'access denied',
+    'verifying you are human',
+    'enable javascript and cookies to continue',
+    'ddos protection by cloudflare',
+  ];
+  const matched = phrases.find((p) => text.includes(p));
+  if (matched) {
+    return `Page de blocage détectée ("${matched}") — non auditée.`;
+  }
+
+  // 3) Codes HTTP de throttling/refus avec très peu de contenu
+  if ((input.httpStatus === 403 || input.httpStatus === 429 || input.httpStatus === 503) && text.trim().length < 600) {
+    return `Accès refusé/limité par le site (HTTP ${input.httpStatus}) — non auditée.`;
+  }
+
+  return null;
+}
+
 @Injectable()
 export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
   private worker: Worker | null = null;
@@ -132,6 +179,24 @@ export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
           },
         );
         await this.websiteAudits.increment({ id: websiteAuditId }, 'pagesFailed', 1);
+        await this.tryFinalizeWebsiteAudit(websiteAuditId);
+        return;
+      }
+
+      // Page de blocage (anti-bot / limite de fréquence) → SKIPPED, exclue du score global
+      if (result.blockedReason) {
+        console.warn(`[AUDIT-WORKER] Page ignorée (blocage): ${url} — ${result.blockedReason}`);
+        await this.pageAudits.update(
+          { id: pageAuditId },
+          {
+            status: PageAuditStatus.SKIPPED,
+            finishedAt: new Date(),
+            finalUrl: result.finalUrl,
+            httpStatus: result.httpStatus,
+            errorMessage: result.blockedReason,
+          },
+        );
+        await this.websiteAudits.increment({ id: websiteAuditId }, 'pagesSkipped', 1);
         await this.tryFinalizeWebsiteAudit(websiteAuditId);
         return;
       }
@@ -241,6 +306,8 @@ export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
     let weightedSum = 0;
     let weightSum = 0;
     for (const p of scoredPages) {
+      // Les pages SKIPPED (bloquées anti-bot / limite de fréquence) sont exclues du score global.
+      if (p.status === 'SKIPPED') continue;
       const w = pageWeight(p.depth);
       weightedSum += p.score * w;
       weightSum += w;
@@ -317,6 +384,7 @@ export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
     let htmlContent: string | null = null;
     let navigated = false; // la page a-t-elle réellement chargé ?
     let navErrorMessage: string | null = null;
+    let blockedReason: string | null = null; // page de blocage anti-bot / limite de fréquence
 
     // Lighthouse est OPTIONNEL (désactivé par défaut) : il est instable (crash "Target closed",
     // NO_FCP) et double les connexions vers le site cible. Sans lui, le score se base sur Axe
@@ -395,6 +463,33 @@ export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
         .catch(() => {});
       // 4) court délai de stabilisation pour les frameworks JS
       await page.waitForTimeout(800);
+
+      // Détection d'une page de blocage (anti-bot / limite de fréquence) : si c'en est une,
+      // on n'audite pas (sinon on scorerait la page d'erreur au lieu du vrai contenu).
+      finalUrl = page.url();
+      try {
+        const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 4000) ?? '');
+        blockedReason = detectBlockPage({ finalUrl, httpStatus, title, bodyText });
+      } catch { /* ignore */ }
+      if (blockedReason) {
+        console.warn(`[AUDIT-WORKER] ${blockedReason} URL: ${url}`);
+        await context.close().catch(() => {});
+        return {
+          navigated: true,
+          navErrorMessage: null,
+          blockedReason,
+          finalUrl,
+          httpStatus,
+          title,
+          lighthouseScore: await lighthousePromise,
+          pageScore: 0,
+          issues: auditIssues,
+          screenshotBytes: null,
+          axeRaw: null,
+          waveAnalysis: null,
+          html: null,
+        };
+      }
 
       await page.evaluate(() => {
         if (typeof window['trustedTypes'] !== 'undefined' && !window['trustedTypes'].defaultPolicy) {
@@ -484,6 +579,7 @@ export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
     return {
       navigated,
       navErrorMessage,
+      blockedReason,
       finalUrl,
       httpStatus,
       title,
