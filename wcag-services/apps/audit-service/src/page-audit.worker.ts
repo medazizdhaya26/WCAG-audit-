@@ -61,6 +61,26 @@ function pageWeight(depth: number): number {
 }
 
 /**
+ * Lit PROXY_URL (ex. http://user:pass@host:port) et le convertit en config proxy Playwright.
+ * Permet d'auditer les sites qui bloquent les IP de datacenter (Cloudflare) via une IP résidentielle.
+ */
+function parseProxy(): { server: string; username?: string; password?: string } | undefined {
+  const raw = (process.env.PROXY_URL ?? '').trim();
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    const cfg: { server: string; username?: string; password?: string } = {
+      server: `${u.protocol}//${u.host}`,
+    };
+    if (u.username) cfg.username = decodeURIComponent(u.username);
+    if (u.password) cfg.password = decodeURIComponent(u.password);
+    return cfg;
+  } catch {
+    return { server: raw };
+  }
+}
+
+/**
  * Détecte si la page chargée est en réalité une page de blocage (anti-bot Cloudflare,
  * limite de fréquence, "vous allez trop vite"…) plutôt que le vrai contenu.
  * Retourne une raison lisible, ou null si la page semble normale.
@@ -399,7 +419,10 @@ export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
       console.log(`[AUDIT-WORKER] Getting browser from pool...`);
       const browser = await this.browserPool.getBrowser();
       console.log(`[AUDIT-WORKER] Creating browser context...`);
+      const proxy = parseProxy();
+      if (proxy) console.log(`[AUDIT-WORKER] Utilisation du proxy: ${proxy.server}`);
       const context = await browser.newContext({
+        ...(proxy ? { proxy } : {}),
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         ignoreHTTPSErrors: true,

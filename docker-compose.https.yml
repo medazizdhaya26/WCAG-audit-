@@ -94,6 +94,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REPORT_SERVICE_URL: http://report-service:3001/reports
+      # Proxy résidentiel optionnel pour auditer les sites protégés (Cloudflare) depuis le cloud.
+      # Ex: PROXY_URL=http://user:pass@gate.smartproxy.com:7000  (défini dans le .env)
+      PROXY_URL: ${PROXY_URL:-}
     depends_on: [postgres, redis]
 
   report-service:

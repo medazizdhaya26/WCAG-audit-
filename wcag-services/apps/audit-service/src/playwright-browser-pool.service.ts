@@ -13,8 +13,24 @@ export class BrowserPoolService implements OnModuleDestroy {
     if (this.browser) return this.browser;
     if (this.launching) return this.launching;
 
+    // Proxy optionnel (PROXY_URL) : nécessaire pour Chromium afin que le proxy par contexte
+    // soit pris en compte. Ex. http://user:pass@host:port
+    const proxyUrl = (process.env.PROXY_URL ?? '').trim();
+    let launchProxy: { server: string; username?: string; password?: string } | undefined;
+    if (proxyUrl) {
+      try {
+        const u = new URL(proxyUrl);
+        launchProxy = { server: `${u.protocol}//${u.host}` };
+        if (u.username) launchProxy.username = decodeURIComponent(u.username);
+        if (u.password) launchProxy.password = decodeURIComponent(u.password);
+      } catch {
+        launchProxy = { server: proxyUrl };
+      }
+    }
+
     this.launching = chromium.launch({
       headless: true,
+      ...(launchProxy ? { proxy: launchProxy } : {}),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
