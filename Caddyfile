@@ -1,0 +1,29 @@
+# WEB4ALL — reverse proxy HTTPS (certificat Let's Encrypt automatique)
+# Un seul domaine, routage par chemin. {$DOMAIN} vient du fichier .env
+{$DOMAIN} {
+	encode gzip
+
+	# ── Keycloak (sert sous le chemin relatif /kc) ─────────────
+	handle /kc/* {
+		reverse_proxy keycloak:8081
+	}
+
+	# ── Microservices NestJS (le préfixe est retiré avant d'atteindre le service) ──
+	handle_path /api/crawler/* {
+		reverse_proxy crawler-service:3002
+	}
+	handle_path /api/audit/* {
+		reverse_proxy audit-service:3005
+	}
+	handle_path /api/report/* {
+		reverse_proxy report-service:3001
+	}
+	handle_path /api/user/* {
+		reverse_proxy user-service:8100
+	}
+
+	# ── Frontend React (tout le reste) ─────────────────────────
+	handle {
+		reverse_proxy frontend:80
+	}
+}

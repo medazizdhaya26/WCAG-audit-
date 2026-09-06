@@ -1,0 +1,148 @@
+# ── WEB4ALL — déploiement production HTTPS (EC2 + Caddy) ─────────────────
+# Prérequis : un domaine pointant vers l'IP de l'EC2 (ex. DuckDNS).
+# Créer un fichier .env à côté de ce fichier :
+#   DOMAIN=web4all.duckdns.org
+# Puis :
+#   sudo docker compose -f docker-compose.https.yml up -d --build
+#
+# Ports à ouvrir dans le security group AWS : 80 (TCP) et 443 (TCP).
+services:
+  caddy:
+    image: caddy:2
+    container_name: web4all-caddy
+    restart: always
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on: [frontend, keycloak]
+
+  postgres:
+    image: postgres:15
+    container_name: web4all-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: wcagdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7
+    container_name: web4all-redis
+    restart: always
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: web4all-keycloak
+    restart: always
+    command: ["start", "--import-realm", "--http-port=8081"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: admin
+      # Hostname v2 : URL publique + chemin relatif /kc, derrière le proxy Caddy (HTTPS)
+      KC_HOSTNAME: https://${DOMAIN}/kc
+      KC_HTTP_RELATIVE_PATH: /kc
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+    volumes:
+      - ./keycloak/realm-web4all.json:/opt/keycloak/data/import/realm-web4all.json
+    depends_on: [postgres]
+
+  crawler-service:
+    build: ./wcag-services
+    container_name: web4all-crawler
+    restart: always
+    command: ["node", "dist/apps/crawler-service/main"]
+    environment:
+      PORT: 3002
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
+      DB_DATABASE: wcagdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_ENABLED: "false"
+      KEYCLOAK_ISSUER: https://${DOMAIN}/kc/realms/web4all
+    depends_on: [postgres, redis]
+
+  audit-service:
+    build: ./wcag-services
+    container_name: web4all-audit
+    restart: always
+    command: ["node", "dist/apps/audit-service/main"]
+    environment:
+      AUDIT_SERVICE_PORT: 3005
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
+      DB_DATABASE: wcagdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REPORT_SERVICE_URL: http://report-service:3001/reports
+    depends_on: [postgres, redis]
+
+  report-service:
+    build: ./wcag-services
+    container_name: web4all-report
+    restart: always
+    command: ["node", "dist/apps/report-service/main"]
+    environment:
+      REPORT_SERVICE_PORT: 3001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
+      DB_DATABASE: wcagdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_ENABLED: "false"
+      KEYCLOAK_ISSUER: https://${DOMAIN}/kc/realms/web4all
+    depends_on: [postgres, redis]
+
+  user-service:
+    build: ./userService
+    container_name: web4all-user
+    restart: always
+    environment:
+      SERVER_PORT: 8100
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://${DOMAIN}/kc/realms/web4all
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: https://${DOMAIN}/kc/realms/web4all/protocol/openid-connect/certs
+      EUREKA_CLIENT_ENABLED: "false"
+      SPRING_CONFIG_IMPORT: "optional:configserver:"
+    depends_on: [postgres, keycloak]
+
+  frontend:
+    build:
+      context: ./wcag audit
+      args:
+        VITE_CRAWLER_URL: https://${DOMAIN}/api/crawler
+        VITE_AUDIT_URL: https://${DOMAIN}/api/audit
+        VITE_REPORT_URL: https://${DOMAIN}/api/report
+        VITE_USER_URL: https://${DOMAIN}/api/user
+        VITE_KEYCLOAK_URL: https://${DOMAIN}/kc
+    container_name: web4all-frontend
+    restart: always
+    depends_on: [crawler-service, audit-service, report-service]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
