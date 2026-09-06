@@ -129,6 +129,7 @@ services:
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8081/kc/realms/web4all/protocol/openid-connect/certs
       EUREKA_CLIENT_ENABLED: "false"
       SPRING_CONFIG_IMPORT: "optional:configserver:"
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: DEBUG
     depends_on: [postgres, keycloak]
 
   frontend:
