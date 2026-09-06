@@ -123,8 +123,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_db
       SPRING_DATASOURCE_USERNAME: admin
       SPRING_DATASOURCE_PASSWORD: admin
+      # issuer = URL publique (doit correspondre au claim "iss" du token)
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://${DOMAIN}/kc/realms/web4all
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: https://${DOMAIN}/kc/realms/web4all/protocol/openid-connect/certs
+      # clés publiques récupérées via l'adresse INTERNE Docker (l'EC2 ne peut pas joindre sa propre IP publique)
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8081/kc/realms/web4all/protocol/openid-connect/certs
       EUREKA_CLIENT_ENABLED: "false"
       SPRING_CONFIG_IMPORT: "optional:configserver:"
     depends_on: [postgres, keycloak]
