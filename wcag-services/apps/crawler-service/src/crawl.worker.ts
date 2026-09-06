@@ -20,7 +20,7 @@ export class CrawlWorker implements OnModuleInit, OnModuleDestroy {
       QUEUE_NAMES.CRAWL,
       async (job: Job) => {
         if (job.name !== 'crawl-website') return;
-        await this.crawlerService.crawlWebsite(job.data.websiteAuditId);
+        await this.crawlerService.crawlWebsite(job.data.websiteAuditId, job.data.manualUrls);
       },
       { connection: this.redis, concurrency },
     );

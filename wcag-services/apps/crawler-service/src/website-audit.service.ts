@@ -24,16 +24,23 @@ export class WebsiteAuditService {
   ) {}
 
   async start(dto: StartWebsiteAuditDto, ownerId: string | null = null) {
-    const normalizedRootUrl = normalizeUrl(dto.url);
+    // Mode manuel : liste d'URLs fournie → on audite exactement ces pages (pas de crawling).
+    const manualUrls = (dto.urls ?? [])
+      .map((u) => (u ?? '').trim())
+      .filter((u) => u.length > 0);
+    const isManual = manualUrls.length > 0;
+
+    const primaryUrl = isManual ? manualUrls[0] : (dto.url as string);
+    const normalizedRootUrl = normalizeUrl(primaryUrl);
 
     const websiteAudit = await this.websiteAudits.save(
       this.websiteAudits.create({
         ownerId,
-        rootUrl: dto.url,
+        rootUrl: primaryUrl,
         normalizedRootUrl,
-        maxDepth: dto.maxDepth ?? 3,
-        maxPages: dto.maxPages ?? 200,
-        renderJs: dto.renderJs ?? true,
+        maxDepth: isManual ? 0 : (dto.maxDepth ?? 3),
+        maxPages: isManual ? manualUrls.length : (dto.maxPages ?? 200),
+        renderJs: isManual ? false : (dto.renderJs ?? true),
         status: WebsiteAuditStatus.QUEUED,
         finishedAt: null,
         globalScore: null,
@@ -45,18 +52,20 @@ export class WebsiteAuditService {
     await this.auditHistory.save(
       this.auditHistory.create({
         websiteAuditId: websiteAudit.id,
-        params: {
-          url: dto.url,
-          maxDepth: dto.maxDepth ?? 3,
-          maxPages: dto.maxPages ?? 200,
-          renderJs: dto.renderJs ?? true,
-        },
+        params: isManual
+          ? { urls: manualUrls, mode: 'manual' }
+          : {
+              url: dto.url,
+              maxDepth: dto.maxDepth ?? 3,
+              maxPages: dto.maxPages ?? 200,
+              renderJs: dto.renderJs ?? true,
+            },
       }),
     );
 
     await this.crawlQueue.add(
       'crawl-website',
-      { websiteAuditId: websiteAudit.id },
+      { websiteAuditId: websiteAudit.id, manualUrls: isManual ? manualUrls : undefined },
       { jobId: `crawl_${websiteAudit.id}` },
     );
 

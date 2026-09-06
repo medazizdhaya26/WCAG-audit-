@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { AlertCircle, Loader2, Search, Trash2, ExternalLink } from 'lucide-react';
+import { AlertCircle, Loader2, Search, Trash2, ExternalLink, Plus, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WavePanel, WaveOverlay, type WaveAnalysisData } from './WavePanel';
 import { ChatBot } from './ChatBot';
@@ -156,10 +156,14 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const [rootUrl, setRootUrl] = useState('');
-  const [maxDepth, setMaxDepth] = useState(1);
-  const [maxPages, setMaxPages] = useState(5);
-  const [renderJs, setRenderJs] = useState(true);
+  // Liste d'URLs à auditer (ajout manuel, sans crawling)
+  const [urls, setUrls] = useState<string[]>(['']);
+
+  const setUrlAt = (index: number, value: string) =>
+    setUrls((prev) => prev.map((u, i) => (i === index ? value : u)));
+  const addUrlField = () => setUrls((prev) => [...prev, '']);
+  const removeUrlField = (index: number) =>
+    setUrls((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
 
   const [startLoading, setStartLoading] = useState(false);
   const [currentAuditId, setCurrentAuditId] = useState<string | null>(null);
@@ -278,18 +282,15 @@ function App() {
 
   const startWebsiteAudit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rootUrl) return;
+    const cleanUrls = urls.map((u) => u.trim()).filter((u) => u.length > 0);
+    if (cleanUrls.length === 0) return;
 
-    console.log('[Frontend] Starting new audit for URL:', rootUrl);
-    console.log('[Frontend] Params:', { maxDepth, maxPages, renderJs });
-    
+    console.log('[Frontend] Starting new audit for URLs:', cleanUrls);
+
     setStartLoading(true);
     try {
       const res = await axios.post<{ id: string }>(`${CRAWLER_SERVICE_URL}/website-audits`, {
-        url: rootUrl,
-        maxDepth,
-        maxPages,
-        renderJs,
+        urls: cleanUrls,
       });
 
       const id = res.data.id;
@@ -307,8 +308,9 @@ function App() {
       setPageDetail(null);
       setSelectedIssueId(null);
 
+      const historyLabel = cleanUrls.length > 1 ? `${cleanUrls[0]} (+${cleanUrls.length - 1})` : cleanUrls[0];
       const nextHistory: AuditHistoryItem[] = [
-        { id, url: rootUrl, startedAt: new Date().toISOString() },
+        { id, url: historyLabel, startedAt: new Date().toISOString() },
         ...readHistory().filter((x) => x.id !== id),
       ].slice(0, 50);
       writeHistory(nextHistory);
@@ -384,70 +386,58 @@ function App() {
                 <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
                   {!currentAuditId && (
                     <div className="text-center space-y-4 py-10">
-                      <h2 className="text-3xl font-extrabold text-slate-900 leading-tight">Website Accessibility Crawler</h2>
+                      <h2 className="text-3xl font-extrabold text-slate-900 leading-tight">Accessibility Audit</h2>
                       <p className="text-slate-500 text-sm max-w-sm mx-auto">
-                        Crawl internal pages, audit each one, and generate a global accessibility score.
+                        Ajoute les pages à analyser (bouton +), audite chacune et obtiens un score global d'accessibilité.
                       </p>
                     </div>
                   )}
 
-                  <form onSubmit={startWebsiteAudit} className="space-y-3">
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-4 w-4 text-slate-400 group-focus-within:text-brand transition-colors" />
+                  <form onSubmit={startWebsiteAudit} className="space-y-2">
+                    {urls.map((u, i) => (
+                      <div key={i} className="relative group flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-slate-400 group-focus-within:text-brand transition-colors" />
+                          </div>
+                          <input
+                            type="url"
+                            placeholder={i === 0 ? 'https://your-website.com/page' : 'https://your-website.com/another-page'}
+                            required={i === 0}
+                            value={u}
+                            onChange={(e) => setUrlAt(i, e.target.value)}
+                            className="block w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-brand/10 focus:border-brand outline-none transition-all text-sm"
+                          />
+                        </div>
+                        {urls.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeUrlField(i)}
+                            title="Retirer cette page"
+                            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      <input
-                        type="url"
-                        placeholder="https://your-website.com"
-                        required
-                        value={rootUrl}
-                        onChange={(e) => setRootUrl(e.target.value)}
-                        className="block w-full pl-9 pr-24 py-3 bg-slate-50 border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-brand/10 focus:border-brand outline-none transition-all text-sm"
-                      />
+                    ))}
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={addUrlField}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-slate-300 text-slate-500 hover:text-brand hover:border-brand text-xs font-bold transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Ajouter une page
+                      </button>
                       <button
                         type="submit"
                         disabled={startLoading}
-                        className="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-brand text-white text-xs font-bold rounded-lg hover:bg-black disabled:bg-slate-300 transition-colors flex items-center gap-1.5"
+                        className="ml-auto px-5 py-2 bg-brand text-white text-xs font-bold rounded-lg hover:bg-black disabled:bg-slate-300 transition-colors flex items-center gap-1.5"
                       >
                         {startLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Start'}
                       </button>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Max Depth</div>
-                        <input
-                          type="number"
-                          min={0}
-                          max={10}
-                          value={maxDepth}
-                          onChange={(e) => setMaxDepth(Math.max(0, Math.min(10, Number(e.target.value))))}
-                          className="mt-1 w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand"
-                        />
-                      </div>
-                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Max Pages</div>
-                        <input
-                          type="number"
-                          min={1}
-                          max={5000}
-                          value={maxPages}
-                          onChange={(e) => setMaxPages(Math.max(1, Math.min(5000, Number(e.target.value))))}
-                          className="mt-1 w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand"
-                        />
-                      </div>
-                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest"></div>
-                        <button
-                          type="button"
-                          onClick={() => setRenderJs((v) => !v)}
-                          className={`mt-2 w-full px-2 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                            renderJs ? 'bg-brand text-white border-brand' : 'bg-white text-slate-600 border-slate-200'
-                          }`}
-                        >
-                          {renderJs ? 'ON' : 'OFF'}
-                        </button>
-                      </div>
                     </div>
                   </form>
 

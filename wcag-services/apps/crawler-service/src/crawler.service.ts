@@ -25,11 +25,17 @@ export class CrawlerService {
     @Inject(REPORT_QUEUE) private readonly reportQueue: Queue,
   ) {}
 
-  async crawlWebsite(websiteAuditId: string): Promise<void> {
+  async crawlWebsite(websiteAuditId: string, manualUrls?: string[]): Promise<void> {
     const audit = await this.websiteAudits.findOne({ where: { id: websiteAuditId } });
     if (!audit) return;
 
     await this.websiteAudits.update({ id: websiteAuditId }, { status: WebsiteAuditStatus.AUDITING });
+
+    // Mode manuel : on audite directement les URLs fournies, sans découverte de liens.
+    if (manualUrls && manualUrls.length > 0) {
+      await this.auditManualUrls(websiteAuditId, manualUrls);
+      return;
+    }
 
     const seenKey = `websiteAudit:${websiteAuditId}:seen`;
     await this.redis.del(seenKey);
@@ -116,6 +122,67 @@ export class CrawlerService {
           queue.push({ url: discovered, depth: current.depth + 1 });
         }
       }
+    }
+  }
+
+  /** Audite une liste d'URLs fournies manuellement (aucun crawling / découverte de liens). */
+  private async auditManualUrls(websiteAuditId: string, urls: string[]): Promise<void> {
+    let pagesDiscovered = 0;
+    let pagesQueued = 0;
+    const seen = new Set<string>();
+
+    for (const raw of urls) {
+      let normalized: string;
+      try {
+        normalized = normalizeUrl(raw);
+      } catch {
+        continue;
+      }
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+
+      let pageAudit = await this.pageAudits.findOne({
+        where: { websiteAuditId, normalizedUrl: normalized },
+      });
+
+      if (!pageAudit) {
+        pageAudit = await this.pageAudits.save(
+          this.pageAudits.create({
+            websiteAuditId,
+            url: raw,
+            normalizedUrl: normalized,
+            depth: 0,
+            status: PageAuditStatus.QUEUED,
+            finalUrl: null,
+            startedAt: null,
+            finishedAt: null,
+            httpStatus: null,
+            title: null,
+            lighthouseScore: null,
+            pageScore: null,
+            axeRaw: null,
+            errorMessage: null,
+          }),
+        );
+        pagesDiscovered += 1;
+      }
+
+      const auditJobId = this.pageAuditJobId(websiteAuditId, normalized);
+      try {
+        await this.pageAuditQueue.add(
+          'audit-page',
+          { websiteAuditId, pageAuditId: pageAudit.id, url: raw },
+          { jobId: auditJobId },
+        );
+        pagesQueued += 1;
+      } catch {
+        // job déjà présent : on continue
+      }
+
+      await this.websiteAudits.update(
+        { id: websiteAuditId },
+        { pagesDiscovered, pagesQueued },
+      );
     }
   }
 

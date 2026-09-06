@@ -9,7 +9,8 @@ export class CrawlerServiceController {
 
   @Post()
   async start(@Body() dto: StartWebsiteAuditDto, @CurrentUser() user: AuthUser | null) {
-    if (!dto?.url) throw new BadRequestException('url is required');
+    const hasUrls = Array.isArray(dto?.urls) && dto.urls.some((u) => u && u.trim());
+    if (!dto?.url && !hasUrls) throw new BadRequestException('url or urls is required');
     return this.websiteAuditService.start(dto, user?.sub ?? null);
   }
 
