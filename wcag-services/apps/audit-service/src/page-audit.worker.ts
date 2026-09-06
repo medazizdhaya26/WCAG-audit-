@@ -405,6 +405,19 @@ export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
         ignoreHTTPSErrors: true,
         bypassCSP: true,
         viewport: { width: 1280, height: 720 },
+        // Empreinte plus « humaine » pour réduire les blocages anti-bot / limite de fréquence
+        locale: 'fr-FR',
+        timezoneId: 'Africa/Tunis',
+        extraHTTPHeaders: {
+          'accept-language': 'fr-FR,fr;q=0.9,en;q=0.8',
+          'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'upgrade-insecure-requests': '1',
+        },
+      });
+      // Masque quelques signaux d'automatisation (navigator.webdriver, etc.)
+      await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr', 'en'] });
       });
       console.log(`[AUDIT-WORKER] Creating new page...`);
       // Optimisation 1 : bloquer les ressources inutiles (images, vidéos, polices).
@@ -471,8 +484,31 @@ export class PageAuditWorker implements OnModuleInit, OnModuleDestroy {
         const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 4000) ?? '');
         blockedReason = detectBlockPage({ finalUrl, httpStatus, title, bodyText });
       } catch { /* ignore */ }
+
+      // Limite de fréquence détectée : ces pages disent "attendez X s puis rechargez une fois".
+      // On applique littéralement ce conseil avant d'abandonner.
       if (blockedReason) {
-        console.warn(`[AUDIT-WORKER] ${blockedReason} URL: ${url}`);
+        console.warn(`[AUDIT-WORKER] Blocage détecté (${blockedReason}) → attente 25s + rechargement unique: ${url}`);
+        await page.waitForTimeout(25000);
+        try {
+          const resp2 = await page.reload({ waitUntil: 'domcontentloaded', timeout: 45000 });
+          httpStatus = resp2?.status() ?? httpStatus;
+          await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+          await page.waitForTimeout(1500);
+          finalUrl = page.url();
+          title = await page.title();
+          const bodyText2 = await page.evaluate(() => document.body?.innerText?.slice(0, 4000) ?? '');
+          blockedReason = detectBlockPage({ finalUrl, httpStatus, title, bodyText: bodyText2 });
+          if (!blockedReason) {
+            console.log(`[AUDIT-WORKER] Déblocage réussi après rechargement: ${url}`);
+          }
+        } catch (e: any) {
+          console.warn(`[AUDIT-WORKER] Rechargement échoué: ${e?.message}`);
+        }
+      }
+
+      if (blockedReason) {
+        console.warn(`[AUDIT-WORKER] Toujours bloqué après réessai → SKIPPED: ${url}`);
         await context.close().catch(() => {});
         return {
           navigated: true,
